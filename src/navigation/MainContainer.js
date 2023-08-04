@@ -4,17 +4,19 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
 // Screens
-import AskScreen from './screens/AskScreen';
-import WatchScreen from './screens/WatchScreen';
-import SearchScreen from './screens/SearchScreen';
+import AskScreen from '../screens/AskScreen';
+import WatchScreen from '../screens/WatchScreen';
+import SearchScreen from '../screens/SearchScreen';
 
-//Screen names
+// Assigning constant names to each screen, to be used as route names
 const askName = 'Ask';
 const watchName = 'Watch';
 const searchName = 'Search';
 
+// Creating the bottom tab navigator
 const Tab = createBottomTabNavigator();
 
+// This is the main container that will wrap the app
 function MainContainer() {
   return (
     <NavigationContainer>

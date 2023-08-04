@@ -1,0 +1,23 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-diallclone-dev-214331-authRole",
+      "UnauthRoleArn": "arn:aws:iam::352282902131:role/amplify-diallclone-dev-214331-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::352282902131:role/amplify-diallclone-dev-214331-authRole",
+      "Region": "us-west-2",
+      "DeploymentBucketName": "amplify-diallclone-dev-214331-deployment",
+      "UnauthRoleName": "amplify-diallclone-dev-214331-unauthRole",
+      "StackName": "amplify-diallclone-dev-214331",
+      "StackId": "arn:aws:cloudformation:us-west-2:352282902131:stack/amplify-diallclone-dev-214331/7769b390-3281-11ee-8dc1-0647c8efd5b9",
+      "AmplifyAppId": "d19nmnz0i6lbt4"
+    },
+    "categories": {
+      "auth": {
+        "diallclone68543c13": {}
+      },
+      "storage": {
+        "s3017337d8": {}
+      }
+    }
+  }
+}
