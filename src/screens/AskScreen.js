@@ -14,21 +14,24 @@ import { Ionicons } from '@expo/vector-icons';
 import SvgInfoComponent from '../../assets/svgInfo';
 import { Amplify, Storage } from 'aws-amplify';
 import { useNavigation } from '@react-navigation/native';
+import { BASE_VIDEO_URI } from '@env';
 
 export default function AskScreen() {
+  // States for handling permissions, camera type, recording status, and more
   const [hasPermission, setHasPermission] = useState(null);
   const [type, setType] = useState(Camera.Constants.Type.front);
   const [recording, setRecording] = useState(false);
   const [videoUri, setVideoUri] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [title, setTitle] = useState('');
+
+  // References to manage the camera, recording timeout, and video player
   const cameraRef = useRef(null);
   const recordingTimeoutRef = useRef();
   const navigation = useNavigation();
   const videoRef = useRef(null);
 
-  // Request for camera and audio permissions on mount
-
+  // Request for camera and microphone permissions once the component is mounted
   useEffect(() => {
     (async () => {
       const cameraStatus = await Camera.requestCameraPermissionsAsync();
@@ -39,7 +42,7 @@ export default function AskScreen() {
     })();
   }, []);
 
-  // Clean up the recording timeout on unmount
+  // Clean up the recording timeout on component unmount
 
   useEffect(() => {
     return () => {
@@ -49,7 +52,7 @@ export default function AskScreen() {
     };
   }, []);
 
-  // Pause the video and reset videoUri when the component loses focus
+  // Pause the video and reset its URI when the screen/component loses focus
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('blur', () => {
@@ -59,7 +62,8 @@ export default function AskScreen() {
       setVideoUri(null); // Reset the video
     });
 
-    return unsubscribe; // Return the unsubscribe function to clean up on unmount
+    // Unsubscribe from the navigation event on unmount
+    return unsubscribe;
   }, [navigation]);
 
   // Return empty View if permissions are not determined yet
@@ -71,7 +75,8 @@ export default function AskScreen() {
     return <Text>No access to camera</Text>;
   }
 
-  // Handle start/stop recording
+  // Handle video recording start and stop
+
   const handleRecord = async () => {
     if (!cameraRef.current) return;
     if (recording) {
@@ -81,21 +86,22 @@ export default function AskScreen() {
       setRecording(true);
       let video = await cameraRef.current.recordAsync();
       setVideoUri(video.uri);
+      // Set a timeout to automatically stop recording after 15 seconds
       recordingTimeoutRef.current = setTimeout(() => {
         if (recording) {
           handleRecord();
         }
-      }, 15000); // stop recording after 15 seconds
+      }, 15000);
     }
   };
 
-  // Delete the recorded video
+  // Delete the recorded video and reset the title
   const deleteRecording = () => {
     setVideoUri(null);
     setTitle('');
   };
 
-  // Send the recorded video to AWS S3
+  // Upload the video to S3 and navigate to the WatchScreen after successful upload
   const handleSend = async () => {
     console.log('handleSend is being called');
     if (title === '') {
@@ -105,45 +111,35 @@ export default function AskScreen() {
       );
     } else {
       try {
-        // extract the file extension
+        // Extract the file extension from the video URI
         let fileType = videoUri.substr(videoUri.lastIndexOf('.') + 1);
 
-        // Configure options for the upload
+        // Generate a unique key for the upload based on the title and current timestamp
+        const key = `${title}-${Date.now()}.${fileType}`;
+
+        // Configuration options for the S3 upload
         const options = {
-          contentType: `video/${fileType}`, // update with your video type e.g video/mp4, video/quicktime etc
+          level: 'public',
+          contentType: `video/${fileType}`,
         };
 
-        // Create blob
-        const blob = await new Promise((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.onload = function () {
-            resolve(xhr.response);
-          };
-          xhr.onerror = function () {
-            reject(new TypeError('Network request failed'));
-          };
-          xhr.responseType = 'blob';
-          xhr.open('GET', videoUri, true);
-          xhr.send(null);
+        // Convert the video into a blob and upload to S3
+        const response = await fetch(videoUri);
+        const blob = await response.blob();
+        const video = await Storage.put(key, blob, options);
+
+        console.log('video uploaded successfully: ', video);
+        setTitle('');
+
+        const videoURL = `${BASE_VIDEO_URI}/${video.key}`;
+        // Redirect to the WatchScreen after a successful upload
+        navigation.navigate('Watch', {
+          uploadedVideo: {
+            uri: videoURL,
+            user: 'username',
+            title: title,
+          },
         });
-
-        // Fetch blob data
-        const data = new FileReader();
-        data.readAsDataURL(blob);
-        data.onloadend = async () => {
-          const base64data = data.result.split(',')[1];
-
-          // Get a key for the upload
-          const key = `${title}-${Date.now()}.${fileType}`;
-
-          // Upload the video to S3
-          const video = await Storage.put(key, base64data, options);
-
-          console.log('video uploaded successfully: ', video);
-
-          // Navigate to the WatchScreen after successful upload
-          navigation.navigate('Watch');
-        };
       } catch (error) {
         console.log('Error caught:', error);
         console.log('Error uploading video: ', error);
@@ -153,8 +149,10 @@ export default function AskScreen() {
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Conditional rendering to either show the camera or the recorded video */}
       {!videoUri ? (
         <Camera style={{ flex: 1 }} type={type} ref={cameraRef}>
+          {/* UI elements and controls for recording */}
           <View
             style={{
               flex: 1,
@@ -177,6 +175,8 @@ export default function AskScreen() {
               }}
               onPress={handleRecord}
             >
+              {/* Visual indication for recording status */}
+
               <View
                 style={{
                   height: recording ? 50 : 0,
@@ -187,6 +187,8 @@ export default function AskScreen() {
               />
             </TouchableOpacity>
           </View>
+
+          {/* Button to display the information modal */}
           <TouchableOpacity
             style={{
               position: 'absolute',
@@ -204,6 +206,7 @@ export default function AskScreen() {
         </Camera>
       ) : (
         <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+          {/* Video player for the recorded video */}
           <Video
             ref={videoRef}
             source={{ uri: videoUri }}
@@ -215,15 +218,14 @@ export default function AskScreen() {
             isLooping
             style={{ flex: 1 }}
           />
+
+          {/* UI elements for video title and controls */}
           <View
             style={{
               position: 'absolute',
               top: '50%',
               left: '50%',
-              transform: [
-                { translateX: -160 }, // This value should be half of your TextInput width
-                { translateY: -220 }, // This value should be half of your TextInput height
-              ],
+              transform: [{ translateX: -160 }, { translateY: -220 }],
             }}
           >
             <TextInput
@@ -257,8 +259,8 @@ export default function AskScreen() {
                 left: 130,
                 bottom: 100,
                 backgroundColor: 'yellowgreen',
-                padding: 40, // Adjust this to increase/decrease button size
-                borderRadius: 50, // For rounded corners
+                padding: 40,
+                borderRadius: 50,
               }}
             >
               <Button
@@ -310,7 +312,7 @@ export default function AskScreen() {
             }}
           >
             <Text style={{ marginBottom: 15, textAlign: 'center' }}>
-              Info Content Goes Here
+              Info Content
             </Text>
           </View>
         </TouchableOpacity>
