@@ -9,3 +9,9 @@ Features: for users to switch between different page of the app, which includes 
 
 
 ## 3. Watch Page  
+
+## 4. Search Page  
+
+
+## To be added... 
+
