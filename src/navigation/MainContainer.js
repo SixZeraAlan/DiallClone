@@ -43,7 +43,7 @@ function MainContainer() {
           tabBarStyle: {
             height: 83,
             backgroundColor: '#000000',
-            paddingBottom: 0, // removing any potential bottom padding
+            paddingBottom: 8, // removing any potential bottom padding
           },
           headerShown: false,
         })}

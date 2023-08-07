@@ -1,156 +1,141 @@
-import * as React from 'react';
-import { StatusBar } from 'expo-status-bar';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  StyleSheet,
   View,
   Text,
+  Image,
   FlatList,
-  TouchableWithoutFeedback,
-  Dimensions,
-  TouchableOpacity,
+  StyleSheet,
+  TextInput,
+  Pressable,
   Share,
 } from 'react-native';
-import { Video } from 'expo-av';
-import { Ionicons, FontAwesome, Feather } from '@expo/vector-icons';
+import { AntDesign, FontAwesome } from '@expo/vector-icons';
+import { firebase } from '../../firebase';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+export default function SearchScreen() {
+  const [therapists, setTherapists] = useState([]);
+  const [filteredTherapists, setFilteredTherapists] = useState([]);
+  const [searchText, setSearchText] = useState('');
 
-const videoData = [
-  {
-    uri: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    user: 'User1',
-    title: 'Description of User1',
-  },
-  {
-    uri: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    user: 'User2',
-    title: 'Description of User2',
-  },
-  {
-    uri: 'https://diallclone65bac59de67a4901a7dfca360c0ba623214331-dev.s3.us-west-2.amazonaws.com/public/IMG_5146.MOV',
-    user: 'User3',
-    title: 'Description of User3',
-  },
-  {
-    uri: 'https://diallclone65bac59de67a4901a7dfca360c0ba623214331-dev.s3.us-west-2.amazonaws.com/public/IMG_5147.MOV',
-    user: 'User4',
-    title: 'Description of User4',
-  },
+  const therapistRef = firebase.firestore().collection('therapists');
+  const searchInputRef = useRef(null);
 
-  // More videos...
-];
+  const navigation = useNavigation();
 
-const repeatData = [...Array(100)].flatMap(() => videoData);
-
-export default function SearchScreen({ navigation }) {
-  const [currentIndex, setCurrentIndex] = React.useState(0);
-  const videoRefs = React.useRef([]);
-  const [playingStatus, setPlayingStatus] = React.useState({});
-
-  const onViewRef = React.useRef(({ viewableItems }) => {
-    setCurrentIndex(viewableItems[0]?.index || 0);
-  });
-
-  const viewConfigRef = React.useRef({ viewAreaCoveragePercentThreshold: 50 });
-
-  const togglePlay = React.useCallback(async (index) => {
-    if (videoRefs.current[index]) {
-      const status = await videoRefs.current[index].getStatusAsync();
-      if (status.isPlaying) {
-        videoRefs.current[index].pauseAsync();
-        setPlayingStatus((prevState) => ({
-          ...prevState,
-          [index]: false,
-        }));
-      } else {
-        videoRefs.current[index].playAsync();
-        setPlayingStatus((prevState) => ({
-          ...prevState,
-          [index]: true,
-        }));
-      }
-    }
-  }, []);
-
-  const onShare = async (uri) => {
+  // Function to share
+  const onShare = async () => {
     try {
-      await Share.share({
-        message: `Check out this awesome video: ${uri}`,
+      const result = await Share.share({
+        message: 'Shared with your therapist',
       });
     } catch (error) {
-      alert(`Error sharing: ${error.message}`);
+      alert(error.message);
     }
   };
 
-  const [bookmarked, setBookmarked] = React.useState({});
+  useEffect(() => {
+    const fetchTherapists = async () => {
+      therapistRef.onSnapshot((querySnapShot) => {
+        const therapistsList = [];
+        querySnapShot.forEach(
+          (doc) => {
+            const { profilePic, username, keywords } = doc.data();
+            therapistsList.push({
+              id: doc.id,
+              profilePic,
+              username,
+              keywords,
+            });
+          },
+          (error) => {
+            console.error('Snapshot listener error: ', error);
+          }
+        );
+        setTherapists(therapistsList);
+      });
+    };
+
+    fetchTherapists();
+  }, []);
+
+  useEffect(() => {
+    // This effect runs whenever the user's input or the therapists list changes
+    const results = therapists.filter(
+      (therapist) =>
+        therapist.username.toLowerCase().includes(searchText.toLowerCase()) ||
+        therapist.keywords.some((keyword) =>
+          keyword.toLowerCase().includes(searchText.toLowerCase())
+        )
+    );
+
+    setFilteredTherapists(results);
+  }, [searchText, therapists]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // Focus the TextInput every time the screen is focused
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+    }, [])
+  );
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={repeatData} // using the new data array
-        keyExtractor={(_, index) => index.toString()}
-        pagingEnabled
-        horizontal={false}
-        showsVerticalScrollIndicator={false}
-        onViewableItemsChanged={onViewRef.current}
-        viewabilityConfig={viewConfigRef.current}
-        renderItem={({ item, index }) => (
-          <TouchableWithoutFeedback onPress={() => togglePlay(index)}>
-            <View style={styles.videoContainer}>
-              <Video
-                ref={(ref) => (videoRefs.current[index] = ref)}
-                style={styles.video}
-                source={{ uri: item.uri }}
-                resizeMode='cover'
-                shouldPlay={currentIndex === index}
-                isLooping
-                onPlaybackStatusUpdate={(status) => {
-                  if (status.didJustFinish && !status.isLooping) {
-                    setCurrentIndex(0);
-                  }
-                }}
-              />
-              {playingStatus.hasOwnProperty(index) && !playingStatus[index] && (
-                <Ionicons
-                  name='play'
-                  size={70}
-                  color='white'
-                  style={styles.pauseIcon}
-                />
-              )}
-
-              <Text style={styles.videoUser}>@{item.user}</Text>
-              <Text style={styles.videoTitle}>{item.title}</Text>
-              <TouchableOpacity
-                style={styles.shareButton}
-                onPress={() => onShare(item.uri)}
-              >
-                <FontAwesome name='share' size={32} color='white' />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.bookmarkButton}
-                onPress={() =>
-                  setBookmarked((prevState) => ({
-                    ...prevState,
-                    [index]: !prevState[index],
-                  }))
-                }
-              >
-                {bookmarked[index] ? (
-                  <Ionicons name='ios-bookmark' size={36} color='white' />
-                ) : (
-                  <Ionicons
-                    name='ios-bookmark-outline'
-                    size={36}
-                    color='white'
-                  />
-                )}
-              </TouchableOpacity>
-            </View>
-          </TouchableWithoutFeedback>
-        )}
+      <TextInput
+        ref={searchInputRef}
+        style={styles.searchBar}
+        placeholder='Search for therapists...'
+        onChangeText={setSearchText}
+        value={searchText}
+        // autoFocus={true}
       />
-      <StatusBar style='auto' />
+
+      {filteredTherapists.length === 0 && searchText ? (
+        <View style={{ alignItems: 'center' }}>
+          <Text style={styles.noMatches}>Don't see your therapist</Text>
+          <Pressable onPress={onShare} style={{ marginTop: 20 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <FontAwesome name='share-square-o' size={24} color='black' />
+              <Text style={{ color: '#888' }}> Invite your therapist</Text>
+            </View>
+          </Pressable>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredTherapists}
+          keyExtractor={(item) => item.username}
+          renderItem={({ item }) => (
+            <View style={styles.therapistContainer}>
+              <Image
+                source={{ uri: item.profilePic }}
+                style={styles.profilePic}
+              />
+              <View style={styles.details}>
+                <Text style={styles.username}>{item.username}</Text>
+                <Text style={styles.keywords}>{item.keywords.join(', ')}</Text>
+              </View>
+              <Pressable
+                onPress={() => {
+                  navigation.navigate('Ask', {
+                    fromSearch: true,
+                    askedTherapistName: item.username,
+                  });
+                }}
+                style={styles.cameraButton}
+              >
+                <AntDesign name='camerao' size={24} color='black' />
+              </Pressable>
+            </View>
+          )}
+        />
+      )}
     </View>
   );
 }
@@ -158,53 +143,49 @@ export default function SearchScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f2f2f2',
+    paddingTop: 60,
   },
-  videoContainer: {
-    width: SCREEN_WIDTH,
-    height: 769,
+  searchBar: {
+    backgroundColor: '#e5e5e5',
+    borderRadius: 25,
+    paddingLeft: 15,
+    margin: 10,
+    height: 40,
   },
-  video: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  noMatches: {
+    padding: 10,
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#888',
   },
-  videoUser: {
-    position: 'absolute',
-    bottom: 50,
-    left: 10,
-    color: 'white',
-    backgroundColor: 'transparent',
-    padding: 5,
+  therapistContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#ccc',
+    height: 80,
+  },
+  profilePic: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 6,
+  },
+  details: {
+    justifyContent: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  username: {
     fontWeight: 'bold',
   },
-  videoTitle: {
-    position: 'absolute',
-    bottom: 25,
-    left: 10,
-    color: 'white',
-    backgroundColor: 'transparent',
-    padding: 5,
+  keywords: {
+    color: '#777',
+    flexWrap: 'wrap',
   },
-  pauseIcon: {
-    position: 'absolute',
-    left: '50%',
-    top: '50%',
-    transform: [
-      { translateX: -25 }, // half the size
-      { translateY: -25 }, // half the size
-    ],
-  },
-  shareButton: {
-    position: 'absolute',
-    bottom: 120,
-    right: 15,
-  },
-  bookmarkButton: {
-    position: 'absolute',
-    bottom: 180,
-    right: 15,
+  cameraButton: {
+    marginRight: 5,
   },
 });

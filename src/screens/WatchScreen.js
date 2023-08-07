@@ -134,6 +134,11 @@ export default function WatchScreen({ navigation, route }) {
     return matches && matches[1];
   };
 
+  const extractTherapistNameFromURI = (uri) => {
+    const matches = uri?.match(/_(.*?)\./);
+    return matches && matches[1];
+  };
+
   // encode the URI:
   const encodeURIWithSpaces = (uri) => {
     if (!uri) return '';
@@ -155,6 +160,7 @@ export default function WatchScreen({ navigation, route }) {
         viewabilityConfig={viewConfigRef.current}
         renderItem={({ item, index }) => (
           // Wraps the video item with a touchable wrapper to detect taps and toggle play/pause
+
           <TouchableWithoutFeedback onPress={() => togglePlay(index)}>
             {/* Container for individual video */}
             <View style={styles.videoContainer}>
@@ -175,7 +181,6 @@ export default function WatchScreen({ navigation, route }) {
                   }}
                 />
               )}
-
               {playingStatus.hasOwnProperty(index) && !playingStatus[index] && (
                 <Ionicons
                   name='play'
@@ -184,11 +189,12 @@ export default function WatchScreen({ navigation, route }) {
                   style={styles.pauseIcon}
                 />
               )}
-              <Text style={styles.videoUser}>@Username</Text>
+              <Text style={styles.videoUser}>
+                @Username #replyed by {extractTherapistNameFromURI(item?.uri)}
+              </Text>
               <Text style={styles.videoTitle}>
                 {extractTitleFromURI(item?.uri)}
               </Text>
-
               {/* Button to share the video */}
               <TouchableOpacity
                 style={styles.shareButton}
@@ -196,7 +202,6 @@ export default function WatchScreen({ navigation, route }) {
               >
                 <FontAwesome name='share' size={32} color='white' />
               </TouchableOpacity>
-
               {/* Toggle button for bookmarking videos */}
               <TouchableOpacity
                 style={styles.bookmarkButton}
@@ -263,10 +268,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: '50%',
     top: '50%',
-    transform: [
-      { translateX: -25 }, // half the size
-      { translateY: -25 }, // half the size
-    ],
+    transform: [{ translateX: -25 }, { translateY: -25 }],
   },
   shareButton: {
     position: 'absolute',

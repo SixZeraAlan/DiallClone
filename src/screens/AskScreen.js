@@ -6,14 +6,14 @@ import {
   Modal,
   TextInput,
   Alert,
-  Button,
+  StyleSheet,
 } from 'react-native';
 import { Camera } from 'expo-camera';
 import { Video } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import SvgInfoComponent from '../../assets/svgInfo';
 import { Amplify, Storage } from 'aws-amplify';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { BASE_VIDEO_URI } from '@env';
 
 export default function AskScreen() {
@@ -30,6 +30,8 @@ export default function AskScreen() {
   const recordingTimeoutRef = useRef();
   const navigation = useNavigation();
   const videoRef = useRef(null);
+  const route = useRoute();
+  const [currentTherapistName, setCurrentTherapistName] = useState('anonymous');
 
   // Request for camera and microphone permissions once the component is mounted
   useEffect(() => {
@@ -41,6 +43,32 @@ export default function AskScreen() {
       );
     })();
   }, []);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      // Check if navigation is from search page
+      if (route.params?.fromSearch) {
+        setCurrentTherapistName(route.params.askedTherapistName);
+      }
+    };
+
+    // Subscribe to focus event to set the therapist name
+    const focusSubscription = navigation.addListener('focus', handleFocus);
+
+    // Subscribe to blur event to reset fromSearch
+    const blurSubscription = navigation.addListener('blur', () => {
+      setCurrentTherapistName('anonymous');
+      if (route.params) {
+        route.params.fromSearch = false;
+      }
+    });
+
+    // Cleanup subscriptions
+    return () => {
+      focusSubscription();
+      blurSubscription();
+    };
+  }, [navigation, route.params]);
 
   // Clean up the recording timeout on component unmount
 
@@ -115,7 +143,7 @@ export default function AskScreen() {
         let fileType = videoUri.substr(videoUri.lastIndexOf('.') + 1);
 
         // Generate a unique key for the upload based on the title and current timestamp
-        const key = `${title}-${Date.now()}.${fileType}`;
+        const key = `${title}-${Date.now()}_${currentTherapistName}.${fileType}`;
 
         // Configuration options for the S3 upload
         const options = {
@@ -132,11 +160,13 @@ export default function AskScreen() {
         setTitle('');
 
         const videoURL = `${BASE_VIDEO_URI}/${video.key}`;
+
         // Redirect to the WatchScreen after a successful upload
         navigation.navigate('Watch', {
           uploadedVideo: {
             uri: videoURL,
             user: 'username',
+            therapist: currentTherapistName,
             title: title,
           },
         });
@@ -148,35 +178,25 @@ export default function AskScreen() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.container}>
       {/* Conditional rendering to either show the camera or the recorded video */}
       {!videoUri ? (
-        <Camera style={{ flex: 1 }} type={type} ref={cameraRef}>
+        <Camera style={styles.camera} type={type} ref={cameraRef}>
           {/* UI elements and controls for recording */}
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: 'transparent',
-              flexDirection: 'row',
-              alignItems: 'flex-end',
-              justifyContent: 'center',
-            }}
-          >
+          <View style={styles.recordContainer}>
+            {/* The added Text component */}
+            {!recording && (
+              <>
+                <Text style={styles.recordTextAbove}>Tap to record</Text>
+                <Text style={styles.recordTextBelow}>your question</Text>
+              </>
+            )}
+
             <TouchableOpacity
-              style={{
-                borderWidth: 6,
-                borderColor: 'white',
-                borderRadius: 50,
-                height: 90,
-                width: 90,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 20,
-              }}
+              style={styles.recordButton}
               onPress={handleRecord}
             >
               {/* Visual indication for recording status */}
-
               <View
                 style={{
                   height: recording ? 50 : 0,
@@ -190,11 +210,7 @@ export default function AskScreen() {
 
           {/* Button to display the information modal */}
           <TouchableOpacity
-            style={{
-              position: 'absolute',
-              right: 10,
-              top: 60,
-            }}
+            style={styles.inforIcon}
             onPress={() => setModalVisible(true)}
           >
             <Ionicons
@@ -220,57 +236,31 @@ export default function AskScreen() {
           />
 
           {/* UI elements for video title and controls */}
-          <View
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: [{ translateX: -160 }, { translateY: -220 }],
-            }}
-          >
+          <View style={styles.titleContainer}>
             <TextInput
-              style={{
-                height: 60,
-                borderColor: 'white',
-                borderWidth: 2,
-                width: 260,
-                borderRadius: 8,
-              }}
+              style={styles.titleInput}
               onChangeText={(text) => setTitle(text)}
               value={title}
               maxLength={40}
+              placeholder='Title of your question...'
+              placeholderTextColor='white'
             />
           </View>
           <View style={{ alignItems: 'center' }}>
             <TouchableOpacity
-              style={{
-                position: 'absolute',
-                left: 15,
-                top: -710,
-              }}
+              style={styles.deleteButton}
               onPress={deleteRecording}
             >
               <Ionicons name='close' size={38} color='white' />
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => console.log('outer touchable pressed')}
-              style={{
-                position: 'absolute',
-                left: 130,
-                bottom: 100,
-                backgroundColor: 'yellowgreen',
-                padding: 40,
-                borderRadius: 50,
+              onPress={() => {
+                console.log('Send It button pressed');
+                handleSend();
               }}
+              style={styles.sendButton}
             >
-              <Button
-                onPress={() => {
-                  console.log('Send It button pressed');
-                  handleSend();
-                }}
-                title='Send It'
-                color='#841584'
-              />
+              <Text style={styles.sendButtonText}>Send It</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -285,38 +275,135 @@ export default function AskScreen() {
         }}
       >
         <TouchableOpacity
-          style={{
-            flex: 1,
-            justifyContent: 'flex-start',
-            alignItems: 'flex-end',
-            backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          }}
+          style={styles.modalBackground}
           onPress={() => setModalVisible(!modalVisible)}
         >
-          <View
-            style={{
-              marginTop: 60,
-              marginRight: 40,
-              backgroundColor: 'white',
-              borderRadius: 20,
-              padding: 35,
-              alignItems: 'center',
-              shadowColor: '#000',
-              shadowOffset: {
-                width: 0,
-                height: 2,
-              },
-              shadowOpacity: 0.25,
-              shadowRadius: 4,
-              elevation: 5,
-            }}
-          >
-            <Text style={{ marginBottom: 15, textAlign: 'center' }}>
-              Info Content
-            </Text>
+          <View style={styles.infoContentContainer}>
+            <Text style={styles.infoContentText}>Info Content</Text>
           </View>
         </TouchableOpacity>
       </Modal>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  textInput: {
+    height: 60,
+    borderColor: 'white',
+    borderWidth: 3,
+    width: 260,
+    borderRadius: 20,
+    paddingLeft: 10,
+    paddingTop: 12,
+    fontSize: 20,
+    color: 'white',
+    justifyContent: 'center',
+  },
+  camera: {
+    flex: 1,
+  },
+  recordContainer: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  recordTextAbove: {
+    color: 'white',
+    textAlign: 'center',
+    fontSize: 28,
+    fontWeight: 500,
+    fontStyle: 'italic',
+    marginBottom: 10,
+  },
+  recordTextBelow: {
+    color: 'white',
+    textAlign: 'center',
+    fontSize: 28,
+    fontWeight: 500,
+    fontStyle: 'italic',
+    marginBottom: 20,
+  },
+  recordButton: {
+    borderWidth: 6,
+    borderColor: 'white',
+    borderRadius: 50,
+    height: 90,
+    width: 90,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  inforIcon: {
+    position: 'absolute',
+    right: 10,
+    top: 60,
+  },
+  titleContainer: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -160 }, { translateY: -220 }],
+  },
+  titleInput: {
+    height: 80,
+    borderColor: 'white',
+    borderWidth: 3,
+    width: 320,
+    borderRadius: 40,
+    paddingLeft: 10,
+    fontSize: 20,
+    color: 'white',
+    justifyContent: 'center',
+  },
+  deleteButton: {
+    position: 'absolute',
+    left: 15,
+    top: -710,
+  },
+  sendButton: {
+    position: 'absolute',
+    bottom: 100,
+    backgroundColor: 'yellowgreen',
+    padding: 40,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendButtonText: {
+    color: 'white',
+    fontSize: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBackground: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  infoContentContainer: {
+    marginTop: 60,
+    marginRight: 40,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  infoContentText: {
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+});
