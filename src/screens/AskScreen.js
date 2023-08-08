@@ -7,14 +7,17 @@ import {
   TextInput,
   Alert,
   StyleSheet,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { Camera } from 'expo-camera';
 import { Video } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
-import SvgInfoComponent from '../../assets/svgInfo';
+// import svgInfoBox from '../../assets/svgInfoBox';
 import { Amplify, Storage } from 'aws-amplify';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { BASE_VIDEO_URI } from '@env';
+import { CountdownCircleTimer } from 'react-native-countdown-circle-timer';
 
 export default function AskScreen() {
   // States for handling permissions, camera type, recording status, and more
@@ -24,6 +27,8 @@ export default function AskScreen() {
   const [videoUri, setVideoUri] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [title, setTitle] = useState('');
+  const [currentTherapistName, setCurrentTherapistName] = useState('anonymous');
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // References to manage the camera, recording timeout, and video player
   const cameraRef = useRef(null);
@@ -31,7 +36,7 @@ export default function AskScreen() {
   const navigation = useNavigation();
   const videoRef = useRef(null);
   const route = useRoute();
-  const [currentTherapistName, setCurrentTherapistName] = useState('anonymous');
+  const titleInputRef = useRef(null);
 
   // Request for camera and microphone permissions once the component is mounted
   useEffect(() => {
@@ -58,6 +63,7 @@ export default function AskScreen() {
     // Subscribe to blur event to reset fromSearch
     const blurSubscription = navigation.addListener('blur', () => {
       setCurrentTherapistName('anonymous');
+      setIsExpanded(false);
       if (route.params) {
         route.params.fromSearch = false;
       }
@@ -107,6 +113,8 @@ export default function AskScreen() {
 
   const handleRecord = async () => {
     if (!cameraRef.current) return;
+
+    // Toggle the timer playing state and start recording
     if (recording) {
       cameraRef.current.stopRecording();
       setRecording(false);
@@ -114,6 +122,7 @@ export default function AskScreen() {
       setRecording(true);
       let video = await cameraRef.current.recordAsync();
       setVideoUri(video.uri);
+
       // Set a timeout to automatically stop recording after 15 seconds
       recordingTimeoutRef.current = setTimeout(() => {
         if (recording) {
@@ -177,113 +186,165 @@ export default function AskScreen() {
     }
   };
 
-  return (
-    <View style={styles.container}>
-      {/* Conditional rendering to either show the camera or the recorded video */}
-      {!videoUri ? (
-        <Camera style={styles.camera} type={type} ref={cameraRef}>
-          {/* UI elements and controls for recording */}
-          <View style={styles.recordContainer}>
-            {/* The added Text component */}
-            {!recording && (
-              <>
-                <Text style={styles.recordTextAbove}>Tap to record</Text>
-                <Text style={styles.recordTextBelow}>your question</Text>
-              </>
-            )}
+  const handleTitleChange = (text) => {
+    setTitle(text);
 
+    if (text.length > 20) {
+      setIsExpanded(true);
+    } else {
+      setIsExpanded(false);
+    }
+  };
+
+  return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <View style={styles.container}>
+        {/* Conditional rendering to either show the camera or the recorded video */}
+        {!videoUri ? (
+          <Camera style={styles.camera} type={type} ref={cameraRef}>
+            {/* UI elements and controls for recording */}
+            <View style={styles.recordContainer}>
+              {/* The added Text component */}
+              {!recording && (
+                <>
+                  <Text style={styles.recordTextAbove}>Tap to record</Text>
+                  <Text style={styles.recordTextBelow}>your question</Text>
+                  <TouchableOpacity
+                    style={styles.notRecordButton}
+                    onPress={handleRecord}
+                  ></TouchableOpacity>
+                </>
+              )}
+
+              {recording && (
+                <>
+                  <TouchableOpacity
+                    style={styles.recordButton}
+                    onPress={handleRecord}
+                  >
+                    {/* Visual indication for recording status */}
+                    <CountdownCircleTimer
+                      isPlaying={recording}
+                      duration={15}
+                      colors={'red'}
+                      size={90}
+                      strokeWidth={6}
+                      trailStrokeWidth={6}
+                      trailColor={'transparent'}
+                      onComplete={() => {
+                        if (recording) {
+                          handleRecord(); // Stop recording when the countdown ends
+                        }
+                      }}
+                    >
+                      {({ remainingTime }) => (
+                        <Text
+                          style={{
+                            color: 'red',
+                            fontSize: 26,
+                            fontWeight: '600',
+                          }}
+                        >
+                          {remainingTime}
+                        </Text>
+                      )}
+                    </CountdownCircleTimer>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+
+            {/* Button to display the information modal */}
             <TouchableOpacity
-              style={styles.recordButton}
-              onPress={handleRecord}
+              style={styles.inforIcon}
+              onPress={() => setModalVisible(true)}
             >
-              {/* Visual indication for recording status */}
-              <View
-                style={{
-                  height: recording ? 50 : 0,
-                  width: recording ? 50 : 0,
-                  borderRadius: 5,
-                  backgroundColor: recording ? 'white' : 'transparent',
-                }}
+              <Ionicons
+                name='information-circle-outline'
+                size={30}
+                color='white'
               />
             </TouchableOpacity>
-          </View>
-
-          {/* Button to display the information modal */}
-          <TouchableOpacity
-            style={styles.inforIcon}
-            onPress={() => setModalVisible(true)}
-          >
-            <Ionicons
-              name='information-circle-outline'
-              size={30}
-              color='white'
+          </Camera>
+        ) : (
+          <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+            {/* Video player for the recorded video */}
+            <Video
+              ref={videoRef}
+              source={{ uri: videoUri }}
+              rate={1.0}
+              volume={1.0}
+              isMuted={false}
+              resizeMode='cover'
+              shouldPlay={true}
+              isLooping
+              style={{ flex: 1 }}
             />
-          </TouchableOpacity>
-        </Camera>
-      ) : (
-        <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-          {/* Video player for the recorded video */}
-          <Video
-            ref={videoRef}
-            source={{ uri: videoUri }}
-            rate={1.0}
-            volume={1.0}
-            isMuted={false}
-            resizeMode='cover'
-            shouldPlay={true}
-            isLooping
-            style={{ flex: 1 }}
-          />
 
-          {/* UI elements for video title and controls */}
-          <View style={styles.titleContainer}>
-            <TextInput
-              style={styles.titleInput}
-              onChangeText={(text) => setTitle(text)}
-              value={title}
-              maxLength={40}
-              placeholder='Title of your question...'
-              placeholderTextColor='white'
-            />
+            {/* UI elements for video title and controls */}
+            <View style={styles.titleContainer}>
+              {title === '' && (
+                <Text style={styles.titlePlaceholderText}>
+                  Title of your question...
+                </Text>
+              )}
+              <TextInput
+                ref={titleInputRef}
+                style={[
+                  isExpanded ? styles.titleInputExpanded : styles.titleInput,
+                ]}
+                onChangeText={handleTitleChange}
+                value={title}
+                maxLength={40}
+                // placeholder='Title of your question...'
+                placeholderTextColor='white'
+                multiline
+                numberOfLines={2}
+                fontFamily='Menlo'
+                blurOnSubmit={true}
+                returnKeyType='done'
+                onSubmitEditing={() => titleInputRef.current.blur()}
+              />
+            </View>
+            <View style={{ alignItems: 'center' }}>
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={deleteRecording}
+              >
+                <Ionicons name='close' size={38} color='white' />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  console.log('Send It button pressed');
+                  handleSend();
+                }}
+                style={styles.sendButton}
+              >
+                <Text style={styles.sendButtonText}>Send It</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={{ alignItems: 'center' }}>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={deleteRecording}
-            >
-              <Ionicons name='close' size={38} color='white' />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
-                console.log('Send It button pressed');
-                handleSend();
-              }}
-              style={styles.sendButton}
-            >
-              <Text style={styles.sendButtonText}>Send It</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+        )}
 
-      <Modal
-        animationType='slide'
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => {
-          setModalVisible(!modalVisible);
-        }}
-      >
-        <TouchableOpacity
-          style={styles.modalBackground}
-          onPress={() => setModalVisible(!modalVisible)}
+        <Modal
+          animationType='slide'
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => {
+            setModalVisible(!modalVisible);
+          }}
         >
-          <View style={styles.infoContentContainer}>
-            <Text style={styles.infoContentText}>Info Content</Text>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    </View>
+          <TouchableOpacity
+            style={styles.modalBackground}
+            onPress={() => setModalVisible(!modalVisible)}
+          >
+            <View style={styles.infoContentContainer}>
+              <Text style={styles.infoContentText}>Info Content</Text>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -328,9 +389,19 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginBottom: 20,
   },
-  recordButton: {
+  notRecordButton: {
     borderWidth: 6,
     borderColor: 'white',
+    borderRadius: 50,
+    height: 90,
+    width: 90,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  recordButton: {
+    borderWidth: 6,
+    borderColor: 'transparent',
     borderRadius: 50,
     height: 90,
     width: 90,
@@ -346,19 +417,46 @@ const styles = StyleSheet.create({
   titleContainer: {
     position: 'absolute',
     top: '50%',
-    left: '50%',
+    left: 220,
     transform: [{ translateX: -160 }, { translateY: -220 }],
   },
+  titlePlaceholderText: {
+    position: 'absolute',
+    left: 10,
+    top: 18,
+    fontSize: 20,
+    color: 'white',
+    fontWeight: '500',
+  },
   titleInput: {
-    height: 80,
+    height: 60,
     borderColor: 'white',
     borderWidth: 3,
-    width: 320,
-    borderRadius: 40,
-    paddingLeft: 10,
+    width: 260,
+    borderRadius: 20,
+    paddingTop: 15,
+    paddingLeft: 5,
+    // paddingRight: 10,
     fontSize: 20,
     color: 'white',
     justifyContent: 'center',
+    fontWeight: '500',
+    backgroundColor: 'rgba(52, 52, 52, 0.8)',
+  },
+  titleInputExpanded: {
+    height: 80, // Height for two lines
+    borderColor: 'white',
+    borderWidth: 3,
+    width: 260,
+    borderRadius: 20,
+    paddingTop: 15,
+    paddingLeft: 5,
+    // paddingRight: 10,
+    fontSize: 20,
+    color: 'white',
+    justifyContent: 'center',
+    fontWeight: '500',
+    backgroundColor: 'rgba(52, 52, 52, 0.8)',
   },
   deleteButton: {
     position: 'absolute',
