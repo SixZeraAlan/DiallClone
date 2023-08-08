@@ -1,0 +1,18 @@
+{
+  "resourceName": "s3017337d8",
+  "policyUUID": "017337d8",
+  "bucketName": "diallclone65bac59de67a4901a7dfca360c0ba623",
+  "storageAccess": "authAndGuest",
+  "guestAccess": [
+    "CREATE_AND_UPDATE",
+    "READ",
+    "DELETE"
+  ],
+  "authAccess": [
+    "CREATE_AND_UPDATE",
+    "READ",
+    "DELETE"
+  ],
+  "triggerFunction": "NONE",
+  "groupAccess": {}
+}
