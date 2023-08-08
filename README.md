@@ -8,6 +8,14 @@ This document describes how to set up and run the code for the Expo project. Fol
   - [Table of Contents](#table-of-contents)
   - [Prerequisites](#prerequisites)
   - [Configuration](#configuration)
+    - [Install Amplify CLI](#install-amplify-cli)
+    - [Configure Amplify CLI:](#configure-amplify-cli)
+    - [Initialize Amplify in the project:](#initialize-amplify-in-the-project)
+    - [Use Amplify CLI to add authentication:](#use-amplify-cli-to-add-authentication)
+    - [Push Changes:](#push-changes)
+    - [make a copy of the aws-exports.js named aws-exports-copy.js:](#make-a-copy-of-the-aws-exportsjs-named-aws-exports-copyjs)
+    - [Documentation may help:](#documentation-may-help)
+    - [Create S3 bucket:](#create-s3-bucket)
   - [Setting Up Firestore Firebase](#setting-up-firestore-firebase)
     - [1. Create a Firestore Project](#1-create-a-firestore-project)
     - [2. Add a Web App](#2-add-a-web-app)
@@ -47,6 +55,77 @@ FIREBASE_MESSAGING_SENDER_ID=YOUR_FIREBASE_MESSAGING_SENDER_ID
 FIREBASE_APP_ID=YOUR_FIREBASE_APP_ID
 FIREBASE_MEASUREMENT_ID=YOUR_FIREBASE_MEASUREMENT_ID
 ```
+
+### Install Amplify CLI
+
+Install the Amplify CLI globally by running the following command:
+```
+npm install -g @aws-amplify/cli
+```
+
+### Configure Amplify CLI:  
+Configure the Amplify CLI with your AWS credentials.
+```
+amplify configure
+```
+Follow the prompts to configure the CLI with your AWS account.
+
+### Initialize Amplify in the project:  
+Navigate to the project directory and run: 
+```
+amplify init
+```
+Follow the prompts to initialize Amplify in the project.
+
+### Use Amplify CLI to add authentication:
+```
+amplify add auth
+```
+### Push Changes: 
+Apply the changes to your backend:
+```
+amplify push
+```
+
+After pushing the changes, the aws-exports.js file will be created.
+
+If you already have an Amplify project set up and want to regenerate the aws-exports.js file, you can run the following command:
+```
+amplify pull
+```
+### make a copy of the aws-exports.js named aws-exports-copy.js:  
+Your aws-export-copy.js could be like this, and be sure to use module.exports in the last: 
+
+const awsmobile = {
+  // ... Configuration here
+};
+
+module.exports = awsmobile;
+
+### Documentation may help:
+
+https://docs.amplify.aws/cli/start/install/#configure-the-amplify-cli  
+
+https://docs.amplify.aws/lib/auth/getting-started/q/platform/js/
+
+### Create S3 bucket:
+Go to AWS console and create a s3 bucket to be used, go to Bucket and click the bucket name you created, then go to the permissions tab to modify the Bucket policy to be public with the following configuration:
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "PublicRead",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::diallclone65bac59de67a4901a7dfca360c0ba623214331-dev/*"
+        }
+    ]
+}
+```
+
+
 
 ## Setting Up Firestore Firebase
 
@@ -100,6 +179,8 @@ expo install
 npm install
 ```
 
+
+
 ## Running the Project
 
 ### 1. Start the Project  
@@ -110,6 +191,7 @@ npx expo start
 Then open the iOS simulator or run the project on your iOS device with Expo installed.
 
 ### 2. Start the Backend Service
+note: if you want to run the project on your physical device, please replace the SERVER_URL in the .env file with this: http://YOUR_IP_ADDRESS:3000
    
 Open another terminal within the root of the project:
 ```
