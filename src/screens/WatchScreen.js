@@ -145,6 +145,16 @@ export default function WatchScreen({ navigation, route }) {
     return encodeURI(uri);
   };
 
+  const getFileTypeFromURI = (uri) => {
+    const extension = uri?.split('.').pop();
+    return extension;
+  };
+
+  const extractTextFromURI = (uri) => {
+    const matches = uri?.match(/public\/(.*?)-/);
+    return matches && matches[1];
+  };
+
   return (
     <View style={styles.container}>
       {/* FlatList to display and scroll through the list of videos */}
@@ -160,72 +170,115 @@ export default function WatchScreen({ navigation, route }) {
         viewabilityConfig={viewConfigRef.current}
         renderItem={({ item, index }) => (
           // Wraps the video item with a touchable wrapper to detect taps and toggle play/pause
-
           <TouchableWithoutFeedback onPress={() => togglePlay(index)}>
             {/* Container for individual video */}
             <View style={styles.videoContainer}>
               {/* Conditional rendering of the video if there's a valid URI */}
-              {item?.uri && (
-                <Video
-                  ref={(ref) => (videoRefs.current[index] = ref)}
-                  style={styles.video}
-                  // source={{ uri: item.uri }}
-                  source={{ uri: encodeURIWithSpaces(item.uri) }}
-                  resizeMode='cover'
-                  shouldPlay={currentIndex === index}
-                  isLooping
-                  onPlaybackStatusUpdate={(status) => {
-                    if (status.didJustFinish && !status.isLooping) {
-                      setCurrentIndex(0);
-                    }
-                  }}
-                />
-              )}
-              {playingStatus.hasOwnProperty(index) && !playingStatus[index] && (
-                <Ionicons
-                  name='play'
-                  size={70}
-                  color='white'
-                  style={styles.pauseIcon}
-                />
-              )}
-              <Text style={styles.videoUser}>
-                @Username #replyed by {extractTherapistNameFromURI(item?.uri)}
-              </Text>
-              <Text style={styles.videoTitle}>
-                {extractTitleFromURI(item?.uri)}
-              </Text>
-              {/* Button to share the video */}
-              <TouchableOpacity
-                style={styles.shareButton}
-                onPress={() => item?.uri && onShare(item.uri)}
-              >
-                <FontAwesome name='share' size={32} color='white' />
-              </TouchableOpacity>
-              {/* Toggle button for bookmarking videos */}
-              <TouchableOpacity
-                style={styles.bookmarkButton}
-                onPress={() =>
-                  setBookmarked((prevState) => ({
-                    ...prevState,
-                    [index]: !prevState[index],
-                  }))
-                }
-              >
-                {bookmarked[index] ? (
-                  <Ionicons name='ios-bookmark' size={36} color='white' />
-                ) : (
-                  <Ionicons
-                    name='ios-bookmark-outline'
-                    size={36}
-                    color='white'
+              {(getFileTypeFromURI(item?.uri) === 'mov' ||
+                getFileTypeFromURI(item?.uri) === 'mp4') && (
+                <>
+                  <Video
+                    ref={(ref) => (videoRefs.current[index] = ref)}
+                    style={styles.video}
+                    // source={{ uri: item.uri }}
+                    source={{ uri: encodeURIWithSpaces(item.uri) }}
+                    resizeMode='cover'
+                    shouldPlay={currentIndex === index}
+                    isLooping
+                    onPlaybackStatusUpdate={(status) => {
+                      if (status.didJustFinish && !status.isLooping) {
+                        setCurrentIndex(0);
+                      }
+                    }}
                   />
-                )}
-              </TouchableOpacity>
+                  {playingStatus.hasOwnProperty(index) &&
+                    !playingStatus[index] && (
+                      <Ionicons
+                        name='play'
+                        size={70}
+                        color='white'
+                        style={styles.pauseIcon}
+                      />
+                    )}
+                  <Text style={styles.videoUser}>
+                    @Username #replyed by{' '}
+                    {extractTherapistNameFromURI(item?.uri)}
+                  </Text>
+                  <Text style={styles.videoTitle}>
+                    {extractTitleFromURI(item?.uri)}
+                  </Text>
+                  {/* Button to share the video */}
+                  <TouchableOpacity
+                    style={styles.shareButton}
+                    onPress={() => item?.uri && onShare(item.uri)}
+                  >
+                    <FontAwesome name='share' size={32} color='white' />
+                  </TouchableOpacity>
+                  {/* Toggle button for bookmarking videos */}
+                  <TouchableOpacity
+                    style={styles.bookmarkButton}
+                    onPress={() =>
+                      setBookmarked((prevState) => ({
+                        ...prevState,
+                        [index]: !prevState[index],
+                      }))
+                    }
+                  >
+                    {bookmarked[index] ? (
+                      <Ionicons name='ios-bookmark' size={36} color='white' />
+                    ) : (
+                      <Ionicons
+                        name='ios-bookmark-outline'
+                        size={36}
+                        color='white'
+                      />
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
+              {getFileTypeFromURI(item?.uri) === 'txt' && (
+                <View>
+                  <Text style={styles.textReference}>Question:</Text>
+                  <Text style={styles.textDisplay}>
+                    {extractTextFromURI(item.uri)}
+                  </Text>
+                  <Text style={styles.textUser}>
+                    @Username #replyed by{' '}
+                    {extractTherapistNameFromURI(item?.uri)}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.shareButtonText}
+                    onPress={() => item?.uri && onShare(item.uri)}
+                  >
+                    <FontAwesome name='share' size={32} color='black' />
+                  </TouchableOpacity>
+                  {/* Toggle button for bookmarking videos */}
+                  <TouchableOpacity
+                    style={styles.bookmarkButtonText}
+                    onPress={() =>
+                      setBookmarked((prevState) => ({
+                        ...prevState,
+                        [index]: !prevState[index],
+                      }))
+                    }
+                  >
+                    {bookmarked[index] ? (
+                      <Ionicons name='bookmark' size={36} color='black' />
+                    ) : (
+                      <Ionicons
+                        name='bookmark-outline'
+                        size={36}
+                        color='black'
+                      />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </TouchableWithoutFeedback>
         )}
       />
+
       <StatusBar style='auto' />
     </View>
   );
@@ -272,12 +325,43 @@ const styles = StyleSheet.create({
   },
   shareButton: {
     position: 'absolute',
-    bottom: 120,
+    bottom: 80,
     right: 15,
   },
   bookmarkButton: {
     position: 'absolute',
-    bottom: 180,
+    bottom: 140,
     right: 15,
+  },
+  shareButtonText: {
+    position: 'absolute',
+    top: 660,
+    right: 15,
+  },
+  bookmarkButtonText: {
+    position: 'absolute',
+    top: 600,
+    right: 15,
+  },
+  textReference: {
+    color: 'black',
+    fontSize: 28,
+    paddingLeft: 30,
+    paddingTop: 80,
+  },
+  textDisplay: {
+    color: 'black',
+    fontSize: 24,
+    paddingLeft: 30,
+    paddingTop: 20,
+  },
+  textUser: {
+    position: 'absolute',
+    top: 710,
+    left: 10,
+    color: 'black',
+    backgroundColor: 'transparent',
+    padding: 5,
+    fontWeight: 'bold',
   },
 });

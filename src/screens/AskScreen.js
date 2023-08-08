@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Camera } from 'expo-camera';
 import { Video } from 'expo-av';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, AntDesign } from '@expo/vector-icons';
 // import svgInfoBox from '../../assets/svgInfoBox';
 import { Amplify, Storage } from 'aws-amplify';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -29,6 +29,8 @@ export default function AskScreen() {
   const [title, setTitle] = useState('');
   const [currentTherapistName, setCurrentTherapistName] = useState('anonymous');
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showMessageInput, setShowMessageInput] = useState(false);
+  const [messageText, setMessageText] = useState('');
 
   // References to manage the camera, recording timeout, and video player
   const cameraRef = useRef(null);
@@ -64,6 +66,9 @@ export default function AskScreen() {
     const blurSubscription = navigation.addListener('blur', () => {
       setCurrentTherapistName('anonymous');
       setIsExpanded(false);
+      setTitle('');
+      setMessageText('');
+      setShowMessageInput(false);
       if (route.params) {
         route.params.fromSearch = false;
       }
@@ -139,8 +144,8 @@ export default function AskScreen() {
   };
 
   // Upload the video to S3 and navigate to the WatchScreen after successful upload
-  const handleSend = async () => {
-    console.log('handleSend is being called');
+  const handleVideoSend = async () => {
+    console.log('handleVideoSend is being called');
     if (title === '') {
       Alert.alert(
         'Title Required',
@@ -186,6 +191,48 @@ export default function AskScreen() {
     }
   };
 
+  // Function to handle text message upload to AWS S3
+  const handleMsgSend = async () => {
+    console.log('handleMsgSend is being called');
+    if (messageText === '') {
+      Alert.alert('Message Required', 'Please enter a message before sending.');
+      return;
+    }
+
+    try {
+      // Generate a unique key for the upload based on the title and current timestamp
+      const key = `${messageText}-${Date.now()}_${currentTherapistName}.txt`;
+
+      // Configuration options for the S3 upload
+      const options = {
+        level: 'public',
+        contentType: 'text/plain',
+      };
+
+      // Upload the text to S3
+      const textUpload = await Storage.put(key, messageText, options);
+
+      console.log('Message uploaded successfully: ', textUpload);
+      setMessageText('');
+      setShowMessageInput(false);
+
+      const textURL = `${BASE_VIDEO_URI}/${textUpload.key}`;
+
+      // Redirect to the WatchScreen after a successful upload
+      navigation.navigate('Watch', {
+        uploadedVideo: {
+          uri: textURL,
+          user: 'username',
+          therapist: currentTherapistName,
+          title: title,
+        },
+      });
+    } catch (error) {
+      console.log('Error caught:', error);
+      console.log('Error uploading message: ', error);
+    }
+  };
+
   const handleTitleChange = (text) => {
     setTitle(text);
 
@@ -196,161 +243,201 @@ export default function AskScreen() {
     }
   };
 
+  const handleShowMessageInput = () => {
+    setShowMessageInput(!showMessageInput);
+  };
+
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.container}>
-        {/* Conditional rendering to either show the camera or the recorded video */}
-        {!videoUri ? (
-          <Camera style={styles.camera} type={type} ref={cameraRef}>
-            {/* UI elements and controls for recording */}
-            <View style={styles.recordContainer}>
-              {/* The added Text component */}
-              {!recording && (
-                <>
-                  <Text style={styles.recordTextAbove}>Tap to record</Text>
-                  <Text style={styles.recordTextBelow}>your question</Text>
-                  <TouchableOpacity
-                    style={styles.notRecordButton}
-                    onPress={handleRecord}
-                  ></TouchableOpacity>
-                </>
-              )}
-
-              {recording && (
-                <>
-                  <TouchableOpacity
-                    style={styles.recordButton}
-                    onPress={handleRecord}
-                  >
-                    {/* Visual indication for recording status */}
-                    <CountdownCircleTimer
-                      isPlaying={recording}
-                      duration={15}
-                      colors={'red'}
-                      size={90}
-                      strokeWidth={6}
-                      trailStrokeWidth={6}
-                      trailColor={'transparent'}
-                      onComplete={() => {
-                        if (recording) {
-                          handleRecord(); // Stop recording when the countdown ends
-                        }
-                      }}
-                    >
-                      {({ remainingTime }) => (
-                        <Text
-                          style={{
-                            color: 'red',
-                            fontSize: 26,
-                            fontWeight: '600',
+      <View style={styles.msgContainer}>
+        {showMessageInput ? (
+          <>
+            <TouchableOpacity
+              style={styles.deleteMsgButton}
+              onPress={() => setShowMessageInput(false)}
+            >
+              <Ionicons name='close' size={38} color='black' />
+            </TouchableOpacity>
+            <TextInput
+              style={styles.messageInput}
+              maxLength={500}
+              multiline
+              numberOfLines={6}
+              placeholder='Enter your question here...'
+              blurOnSubmit={true}
+              returnKeyType='done'
+              placeholderTextColor='#6a6b69'
+              paddingTop={12}
+              onChangeText={(text) => setMessageText(text)}
+              value={messageText}
+            />
+            <TouchableOpacity
+              onPress={() => {
+                console.log('Send message button pressed');
+                handleMsgSend();
+              }}
+              style={styles.sendMsgButton}
+            >
+              <Text style={styles.sendMsgButtonText}>Send It</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            {!videoUri ? (
+              <Camera style={styles.camera} type={type} ref={cameraRef}>
+                <View style={styles.recordContainer}>
+                  {!recording && (
+                    <>
+                      <Text style={styles.recordTextAbove}>
+                        Tap to record/enter
+                      </Text>
+                      <Text style={styles.recordTextBelow}>your question</Text>
+                      <View style={styles.buttonContainer}>
+                        <TouchableOpacity
+                          style={styles.notRecordButton}
+                          onPress={handleRecord}
+                        ></TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.msgButton}
+                          onPress={handleShowMessageInput}
+                        >
+                          <AntDesign name='message1' size={90} color='white' />
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  )}
+                  {recording && (
+                    <>
+                      <TouchableOpacity
+                        style={styles.recordButton}
+                        onPress={handleRecord}
+                      >
+                        <CountdownCircleTimer
+                          isPlaying={recording}
+                          duration={15}
+                          colors={'red'}
+                          size={90}
+                          strokeWidth={6}
+                          trailStrokeWidth={6}
+                          trailColor={'transparent'}
+                          onComplete={() => {
+                            if (recording) {
+                              handleRecord();
+                            }
                           }}
                         >
-                          {remainingTime}
-                        </Text>
-                      )}
-                    </CountdownCircleTimer>
+                          {({ remainingTime }) => (
+                            <Text
+                              style={{
+                                color: 'red',
+                                fontSize: 26,
+                                fontWeight: '600',
+                              }}
+                            >
+                              {remainingTime}
+                            </Text>
+                          )}
+                        </CountdownCircleTimer>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={styles.inforIcon}
+                  onPress={() => setModalVisible(true)}
+                >
+                  <Ionicons
+                    name='information-circle-outline'
+                    size={30}
+                    color='white'
+                  />
+                </TouchableOpacity>
+              </Camera>
+            ) : (
+              <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+                <Video
+                  ref={videoRef}
+                  source={{ uri: videoUri }}
+                  rate={1.0}
+                  volume={1.0}
+                  isMuted={false}
+                  resizeMode='cover'
+                  shouldPlay={true}
+                  isLooping
+                  style={{ flex: 1 }}
+                />
+                <View style={styles.titleContainer}>
+                  {title === '' && (
+                    <Text style={styles.titlePlaceholderText}>
+                      Title of your question...
+                    </Text>
+                  )}
+                  <TextInput
+                    ref={titleInputRef}
+                    style={[
+                      isExpanded
+                        ? styles.titleInputExpanded
+                        : styles.titleInput,
+                    ]}
+                    onChangeText={handleTitleChange}
+                    value={title}
+                    maxLength={40}
+                    placeholderTextColor='white'
+                    multiline
+                    numberOfLines={2}
+                    fontFamily='Menlo'
+                    blurOnSubmit={true}
+                    returnKeyType='done'
+                    onSubmitEditing={() => titleInputRef.current.blur()}
+                  />
+                </View>
+                <View style={{ alignItems: 'center' }}>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={deleteRecording}
+                  >
+                    <Ionicons name='close' size={38} color='white' />
                   </TouchableOpacity>
-                </>
-              )}
-            </View>
-
-            {/* Button to display the information modal */}
-            <TouchableOpacity
-              style={styles.inforIcon}
-              onPress={() => setModalVisible(true)}
+                  <TouchableOpacity
+                    onPress={() => {
+                      console.log('Send video button pressed');
+                      handleVideoSend();
+                    }}
+                    style={styles.sendButton}
+                  >
+                    <Text style={styles.sendButtonText}>Send It</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+            <Modal
+              animationType='slide'
+              transparent={true}
+              visible={modalVisible}
+              onRequestClose={() => {
+                setModalVisible(!modalVisible);
+              }}
             >
-              <Ionicons
-                name='information-circle-outline'
-                size={30}
-                color='white'
-              />
-            </TouchableOpacity>
-          </Camera>
-        ) : (
-          <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-            {/* Video player for the recorded video */}
-            <Video
-              ref={videoRef}
-              source={{ uri: videoUri }}
-              rate={1.0}
-              volume={1.0}
-              isMuted={false}
-              resizeMode='cover'
-              shouldPlay={true}
-              isLooping
-              style={{ flex: 1 }}
-            />
-
-            {/* UI elements for video title and controls */}
-            <View style={styles.titleContainer}>
-              {title === '' && (
-                <Text style={styles.titlePlaceholderText}>
-                  Title of your question...
-                </Text>
-              )}
-              <TextInput
-                ref={titleInputRef}
-                style={[
-                  isExpanded ? styles.titleInputExpanded : styles.titleInput,
-                ]}
-                onChangeText={handleTitleChange}
-                value={title}
-                maxLength={40}
-                // placeholder='Title of your question...'
-                placeholderTextColor='white'
-                multiline
-                numberOfLines={2}
-                fontFamily='Menlo'
-                blurOnSubmit={true}
-                returnKeyType='done'
-                onSubmitEditing={() => titleInputRef.current.blur()}
-              />
-            </View>
-            <View style={{ alignItems: 'center' }}>
               <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={deleteRecording}
+                style={styles.modalBackground}
+                onPress={() => setModalVisible(!modalVisible)}
               >
-                <Ionicons name='close' size={38} color='white' />
+                <View style={styles.infoContentContainer}>
+                  <Text style={styles.infoContentText}>Info Content</Text>
+                </View>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  console.log('Send It button pressed');
-                  handleSend();
-                }}
-                style={styles.sendButton}
-              >
-                <Text style={styles.sendButtonText}>Send It</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+            </Modal>
+          </>
         )}
-
-        <Modal
-          animationType='slide'
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => {
-            setModalVisible(!modalVisible);
-          }}
-        >
-          <TouchableOpacity
-            style={styles.modalBackground}
-            onPress={() => setModalVisible(!modalVisible)}
-          >
-            <View style={styles.infoContentContainer}>
-              <Text style={styles.infoContentText}>Info Content</Text>
-            </View>
-          </TouchableOpacity>
-        </Modal>
       </View>
     </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  msgContainer: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   textInput: {
     height: 60,
@@ -388,6 +475,33 @@ const styles = StyleSheet.create({
     fontWeight: 500,
     fontStyle: 'italic',
     marginBottom: 20,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: 280,
+  },
+  msgButton: {
+    backgroundColor: 'transparent',
+    paddingBottom: 10,
+    borderRadius: 5,
+  },
+  msgButtonText: {
+    color: 'white',
+    fontSize: 18,
+    backgroundColor: 'transparent',
+  },
+  messageInput: {
+    position: 'absolute',
+    top: 100,
+    left: '5%',
+    right: '5%',
+    padding: 15,
+    fontSize: 18,
+    borderColor: 'black',
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderRadius: 20,
   },
   notRecordButton: {
     borderWidth: 6,
@@ -503,5 +617,26 @@ const styles = StyleSheet.create({
   infoContentText: {
     marginBottom: 15,
     textAlign: 'center',
+  },
+  deleteMsgButton: {
+    position: 'absolute',
+    left: 15,
+    top: 45,
+  },
+  sendMsgButton: {
+    position: 'absolute',
+    left: 115,
+    bottom: 100,
+    backgroundColor: 'yellowgreen',
+    padding: 40,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendMsgButtonText: {
+    color: 'white',
+    fontSize: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

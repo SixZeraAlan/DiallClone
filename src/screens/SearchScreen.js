@@ -121,17 +121,30 @@ export default function SearchScreen() {
                 <Text style={styles.username}>{item.username}</Text>
                 <Text style={styles.keywords}>{item.keywords.join(', ')}</Text>
               </View>
-              <Pressable
-                onPress={() => {
-                  navigation.navigate('Ask', {
-                    fromSearch: true,
-                    askedTherapistName: item.username,
-                  });
-                }}
-                style={styles.cameraButton}
-              >
-                <AntDesign name='camerao' size={24} color='black' />
-              </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Pressable
+                  onPress={() => {
+                    navigation.navigate('Ask', {
+                      fromSearch: true,
+                      askedTherapistName: item.username,
+                    });
+                  }}
+                  style={styles.messageButton}
+                >
+                  <AntDesign name='message1' size={24} color='black' />
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    navigation.navigate('Ask', {
+                      fromSearch: true,
+                      askedTherapistName: item.username,
+                    });
+                  }}
+                  style={styles.cameraButton}
+                >
+                  <AntDesign name='camerao' size={24} color='black' />
+                </Pressable>
+              </View>
             </View>
           )}
         />
@@ -187,5 +200,8 @@ const styles = StyleSheet.create({
   },
   cameraButton: {
     marginRight: 5,
+  },
+  messageButton: {
+    marginRight: 12,
   },
 });
