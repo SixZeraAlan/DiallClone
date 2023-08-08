@@ -13,7 +13,7 @@ This document describes how to set up and run the code for the Expo project. Fol
     - [Initialize Amplify in the project:](#initialize-amplify-in-the-project)
     - [Use Amplify CLI to add authentication:](#use-amplify-cli-to-add-authentication)
     - [Push Changes:](#push-changes)
-    - [make a copy of the aws-exports.js named aws-exports-copy.js:](#make-a-copy-of-the-aws-exportsjs-named-aws-exports-copyjs)
+    - [make a copy of the aws-exports.js named aws-exports-copy.js with in the root directory:](#make-a-copy-of-the-aws-exportsjs-named-aws-exports-copyjs-with-in-the-root-directory)
     - [Documentation may help:](#documentation-may-help)
     - [Create S3 bucket:](#create-s3-bucket)
   - [Setting Up Firestore Firebase](#setting-up-firestore-firebase)
@@ -93,7 +93,7 @@ If you already have an Amplify project set up and want to regenerate the aws-exp
 ```
 amplify pull
 ```
-### make a copy of the aws-exports.js named aws-exports-copy.js:  
+### make a copy of the aws-exports.js named aws-exports-copy.js with in the root directory:  
 Your aws-export-copy.js could be like this, and be sure to use module.exports in the last: 
 
 const awsmobile = {
