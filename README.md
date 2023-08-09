@@ -26,6 +26,7 @@ This document describes how to set up and run the code for the Expo project. Fol
     - [2. Navigate to the Project Directory](#2-navigate-to-the-project-directory)
     - [3. Install Dependencies](#3-install-dependencies)
   - [Running the Project](#running-the-project)
+    - [Testing Device:](#testing-device)
     - [1. Start the Project](#1-start-the-project)
     - [2. Start the Backend Service](#2-start-the-backend-service)
   - [Problems identified and Short Action Plan...](#problems-identified-and-short-action-plan)
@@ -96,11 +97,14 @@ amplify pull
 ### make a copy of the aws-exports.js named aws-exports-copy.js with in the root directory:  
 Your aws-export-copy.js could be like this, and be sure to use module.exports in the last: 
 
+```
 const awsmobile = {
   // ... Configuration here
 };
 
 module.exports = awsmobile;
+```
+
 
 ### Documentation may help:
 
@@ -182,6 +186,12 @@ npm install
 
 
 ## Running the Project
+
+### Testing Device:  
+
+Physical iphone 14 Pro  
+
+Since some styles is hardcoded, it is recommended to run the project on a iphone14 pro device, the styles should be optimized to fit for all devices in the future...
 
 ### 1. Start the Project  
 
