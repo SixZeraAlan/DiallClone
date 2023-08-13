@@ -8,6 +8,7 @@ This document describes how to set up and run the code for the Expo project. Fol
   - [Table of Contents](#table-of-contents)
   - [Prerequisites](#prerequisites)
   - [Configuration](#configuration)
+    - [Create S3 bucket:](#create-s3-bucket)
     - [Install Amplify CLI](#install-amplify-cli)
     - [Configure Amplify CLI:](#configure-amplify-cli)
     - [Initialize Amplify in the project:](#initialize-amplify-in-the-project)
@@ -15,7 +16,6 @@ This document describes how to set up and run the code for the Expo project. Fol
     - [Push Changes:](#push-changes)
     - [make a copy of the aws-exports.js named aws-exports-copy.js with in the root directory:](#make-a-copy-of-the-aws-exportsjs-named-aws-exports-copyjs-with-in-the-root-directory)
     - [Documentation may help:](#documentation-may-help)
-    - [Create S3 bucket:](#create-s3-bucket)
   - [Setting Up Firestore Firebase](#setting-up-firestore-firebase)
     - [1. Create a Firestore Project](#1-create-a-firestore-project)
     - [2. Add a Web App](#2-add-a-web-app)
@@ -56,6 +56,25 @@ FIREBASE_MESSAGING_SENDER_ID=YOUR_FIREBASE_MESSAGING_SENDER_ID
 FIREBASE_APP_ID=YOUR_FIREBASE_APP_ID
 FIREBASE_MEASUREMENT_ID=YOUR_FIREBASE_MEASUREMENT_ID
 ```
+
+### Create S3 bucket:  
+
+Go to AWS console and create a s3 bucket to be used, go to Bucket and click the bucket name you created, then go to the permissions tab to modify the Bucket policy to be public with the following configuration:  
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "PublicRead",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::diallclone65bac59de67a4901a7dfca360c0ba623214331-dev/*"
+        }
+    ]
+}
+```  
 
 ### Install Amplify CLI
 
@@ -112,22 +131,7 @@ https://docs.amplify.aws/cli/start/install/#configure-the-amplify-cli
 
 https://docs.amplify.aws/lib/auth/getting-started/q/platform/js/
 
-### Create S3 bucket:
-Go to AWS console and create a s3 bucket to be used, go to Bucket and click the bucket name you created, then go to the permissions tab to modify the Bucket policy to be public with the following configuration:
-```
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "PublicRead",
-            "Effect": "Allow",
-            "Principal": "*",
-            "Action": "s3:GetObject",
-            "Resource": "arn:aws:s3:::diallclone65bac59de67a4901a7dfca360c0ba623214331-dev/*"
-        }
-    ]
-}
-```
+
 
 
 
